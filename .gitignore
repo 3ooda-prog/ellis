@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.log
+coverage/
+# Prototype exports contain personal data; import them, never commit them.
+data/
