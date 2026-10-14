@@ -27,7 +27,16 @@ npm run user:create -- you@example.com Asia/Dubai
 npm run dev                     # http://127.0.0.1:3000
 ```
 
-Quick check:
+Open http://127.0.0.1:3000 and paste the token to chat in the browser. The page shows replies as they stream in, what was saved from each message, and a "What Ellis remembers" panel (coming up, to do, not sure yet, decisions, about you, recently finished). It works on phones too.
+
+To run it in a container (any host that runs Docker, such as Render, Railway or Fly.io):
+
+```bash
+docker build -t ellis .
+docker run -p 3000:3000 -e DATABASE_URL=... -e ANTHROPIC_API_KEY=... ellis
+```
+
+Quick check from the command line:
 
 ```bash
 TOKEN=ellis_...
@@ -57,7 +66,7 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 
 ```bash
 npm run typecheck
-npm test            # 51 tests, ~35 s, no network, no API key
+npm test            # 54 tests, ~35 s, no network, no API key
 npm run test:live   # one real model call (§9 smoke test); needs ANTHROPIC_API_KEY
 ```
 
@@ -75,6 +84,7 @@ All `/v1` routes require `Authorization: Bearer <token>`.
 
 | Method | Path | Notes |
 |---|---|---|
+| `GET` | `/` | Web client (public; signs in with your token) |
 | `GET` | `/health` | Public |
 | `GET` | `/v1/me` | User, companions, areas |
 | `DELETE` | `/v1/me` | Deletes the user and everything they own |

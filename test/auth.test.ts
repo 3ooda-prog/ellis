@@ -116,3 +116,11 @@ describe("deleting a user", () => {
     expect(counts.rows[0]).toEqual({ records: 0, conversations: 0, orphan_turns: 0, recaps: 0, tokens: 0, companions: 0, audit: 0 });
   });
 });
+
+describe("web client", () => {
+  it.each(["/", "/app.js", "/app.css"])("%s is served publicly with a strict CSP", async (url) => {
+    const res = await ctx.app.inject({ method: "GET", url });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-security-policy"]).toContain("script-src 'self'");
+  });
+});

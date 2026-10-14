@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Ellis</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <!-- Sign-in: paste the token printed by `npm run user:create`. -->
+  <section id="signin" class="signin" hidden>
+    <form id="signin-form" class="signin-card">
+      <div class="mark" aria-hidden="true">E</div>
+      <h1>Ellis</h1>
+      <p>Paste the access token you were given when your account was created.</p>
+      <label for="token">Access token</label>
+      <input id="token" name="token" type="password" autocomplete="current-password" placeholder="ellis_…" required>
+      <p id="signin-error" class="error" role="alert" hidden></p>
+      <button type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <div id="app" class="app" hidden>
+    <header class="bar">
+      <div class="who">
+        <div class="mark small" aria-hidden="true">E</div>
+        <div>
+          <div id="companion-name" class="name">Ellis</div>
+          <div id="status" class="status" aria-live="polite">Here</div>
+        </div>
+      </div>
+      <div class="bar-actions">
+        <button id="memory-toggle" class="ghost" type="button" aria-controls="memory" aria-expanded="false">Memory <span id="memory-count" class="count">0</span></button>
+        <button id="signout" class="ghost" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="chat" aria-label="Conversation">
+        <ol id="log" class="log" aria-live="polite"></ol>
+        <form id="composer" class="composer">
+          <label for="message" class="visually-hidden">Message</label>
+          <textarea id="message" rows="1" maxlength="8000" placeholder="Tell Ellis anything…" required></textarea>
+          <button id="send" type="submit">Send</button>
+        </form>
+      </section>
+
+      <aside id="memory" class="memory" aria-label="What Ellis remembers">
+        <div class="memory-head">
+          <h2>What Ellis remembers</h2>
+          <button id="memory-close" class="ghost close" type="button" aria-label="Close memory">Close</button>
+        </div>
+        <div id="memory-body" class="memory-body"></div>
+      </aside>
+    </main>
+  </div>
+</body>
+</html>

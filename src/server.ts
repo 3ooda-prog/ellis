@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { handleMessage, NotFoundError, type ChatEvent } from "./conversation/service.js";
@@ -33,6 +36,15 @@ const RecordQuery = z.object({
   kind: z.enum(["fact", "task", "event", "decision"]).optional(),
 });
 
+// The web client: three static files, read once at startup.
+const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+const STATIC_FILES: Record<string, { file: string; type: string }> = {
+  "/": { file: "index.html", type: "text/html; charset=utf-8" },
+  "/app.js": { file: "app.js", type: "text/javascript; charset=utf-8" },
+  "/app.css": { file: "app.css", type: "text/css; charset=utf-8" },
+};
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+
 function bearer(req: FastifyRequest): string | null {
   const h = req.headers.authorization;
   const m = h && /^Bearer\s+(\S+)$/i.exec(h);
@@ -46,6 +58,19 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   app.get("/health", async () => ({ ok: true }));
+
+  for (const [route, { file, type }] of Object.entries(STATIC_FILES)) {
+    const body = readFileSync(path.join(PUBLIC_DIR, file));
+    app.get(route, async (_req, reply) =>
+      reply
+        .type(type)
+        .header("content-security-policy", CSP)
+        .header("x-content-type-options", "nosniff")
+        .header("referrer-policy", "no-referrer")
+        .header("cache-control", "no-cache")
+        .send(body),
+    );
+  }
 
   // Everything under /v1 is per-user and requires a bearer token.
   app.register(
