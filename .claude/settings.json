@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "emotix": {
+      "source": {
+        "source": "github",
+        "repo": "emotixco/claude-skills-founder"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "founder@emotix": true
+  }
+}
