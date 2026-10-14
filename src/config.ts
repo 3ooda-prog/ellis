@@ -3,6 +3,7 @@ export interface Config {
   model: string;
   effort: "low" | "medium" | "high" | "xhigh" | "max";
   workspaceId?: string;
+  devTools: boolean;
   port: number;
   host: string;
   logLevel: string;
@@ -20,6 +21,7 @@ export function loadConfig(env = process.env): Config {
     model: env.ELLIS_MODEL ?? "claude-opus-5-5",
     effort,
     workspaceId: env.ANTHROPIC_WORKSPACE_ID || undefined,
+    devTools: env.ELLIS_DEV_TOOLS === "1",
     port: Number(env.PORT ?? 3000),
     host: env.HOST ?? "127.0.0.1",
     logLevel: env.LOG_LEVEL ?? "info",

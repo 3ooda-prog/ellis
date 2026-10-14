@@ -17,6 +17,7 @@ const app = buildApp({
   db,
   provider: createAnthropicProvider({ model: config.model, effort: config.effort, workspaceId: config.workspaceId }),
   logLevel: config.logLevel,
+  devTools: config.devTools,
 });
 
 const shutdown = async () => {

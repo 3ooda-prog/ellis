@@ -23,6 +23,8 @@ export interface AppDeps {
   provider: ChatProvider;
   clock?: () => Date;
   logLevel?: string;
+  /** ELLIS_DEV_TOOLS: allows setting a companion's stage directly, to preview designs. */
+  devTools?: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -109,7 +111,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         const withGrowth = await Promise.all(
           companions.rows.map(async (c) => ({ ...c, growth: await companionGrowth(db, req.user.id, c.id as string) })),
         );
-        return { user: req.user, companions: withGrowth, areas: areas.rows };
+        return { user: req.user, companions: withGrowth, areas: areas.rows, dev_tools: !!deps.devTools };
       });
 
       v1.patch<{ Params: { id: string } }>("/companions/:id", async (req, reply) => {
@@ -153,6 +155,25 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         await audit(db, req.user.id, "companion.evolve", req.params.id, { from: growth.stage, to: growth.stage + 1 });
         return { companion: rows[0], growth: await companionGrowth(db, req.user.id, req.params.id) };
       });
+
+      // Development only: jump to any stage without earning growth.
+      if (deps.devTools) {
+        const DevStage = z.object({ stage: z.union([z.literal(1), z.literal(2), z.literal(3)]) });
+        v1.post<{ Params: { id: string } }>("/dev/companions/:id/stage", async (req, reply) => {
+          if (!UUID.test(req.params.id)) return reply.code(404).send({ error: "not found" });
+          const body = DevStage.safeParse(req.body);
+          if (!body.success) return reply.code(400).send({ error: "stage must be 1, 2 or 3" });
+          const { rows } = await db.query(
+            `update companions set stage = $3, evolved_at = now()
+              where id = $1 and user_id = $2
+              returning id, name, role, is_primary, appearance, stage, keep_form`,
+            [req.params.id, req.user.id, body.data.stage],
+          );
+          if (!rows[0]) return reply.code(404).send({ error: "not found" });
+          await audit(db, req.user.id, "companion.dev_stage", req.params.id, { stage: body.data.stage });
+          return { companion: rows[0], growth: await companionGrowth(db, req.user.id, req.params.id) };
+        });
+      }
 
       v1.delete("/me", async (req, reply) => {
         await db.query("delete from users where id = $1", [req.user.id]);

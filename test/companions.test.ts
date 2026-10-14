@@ -143,3 +143,29 @@ describe("creature registry", () => {
     expect(creatureSvg(DEFAULT_APPEARANCE, 1, { label: '"><script>x</script>' })).not.toContain("<script>");
   });
 });
+
+describe("dev stage control", () => {
+  it("is not available unless ELLIS_DEV_TOOLS is on", async () => {
+    const res = await ctx.app.inject({
+      method: "POST", url: `/v1/dev/companions/${companionId}/stage`, headers: auth(a.token), payload: { stage: 3 },
+    });
+    expect(res.statusCode).toBe(404);
+    expect((await me(a.token)).dev_tools).toBe(false);
+  });
+
+  it("when on, sets any stage for your own companion only", async () => {
+    const dev = await testApp({ devTools: true });
+    const u = await testUser(dev.db);
+    const other = await testUser(dev.db);
+    const id = (await dev.app.inject({ method: "GET", url: "/v1/me", headers: auth(u.token) })).json().companions[0].id;
+    const set = (token: string, stage: unknown) =>
+      dev.app.inject({ method: "POST", url: `/v1/dev/companions/${id}/stage`, headers: auth(token), payload: { stage } });
+    expect((await set(u.token, 3)).json().companion.stage).toBe(3);
+    expect((await set(u.token, 1)).json().companion.stage).toBe(1);
+    expect((await set(u.token, 4)).statusCode).toBe(400);
+    expect((await set(other.token, 2)).statusCode).toBe(404);
+    expect((await dev.app.inject({ method: "GET", url: "/v1/me", headers: auth(u.token) })).json().dev_tools).toBe(true);
+    await dev.app.close();
+    await dev.db.close();
+  });
+});

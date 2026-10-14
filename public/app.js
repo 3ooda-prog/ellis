@@ -446,10 +446,11 @@ function renderEditor() {
   line.replaceChildren();
   FAMILIES[d.appearance.family].stages.forEach((st, i) => {
     const n = i + 1;
-    const cell = el("div", `evo${n === stage ? " current" : ""}${n > stage ? " locked" : ""}`);
+    const locked = n > stage && !state.me?.dev_tools;
+    const cell = el("div", `evo${n === stage ? " current" : ""}${locked ? " locked" : ""}`);
     const mini = el("span", "mini");
-    mini.innerHTML = creatureSvg(d.appearance, n, { label: n > stage ? "Not yet discovered" : st.name });
-    cell.append(mini, el("span", null, n > stage ? "???" : st.name));
+    mini.innerHTML = creatureSvg(d.appearance, n, { label: locked ? "Not yet discovered" : st.name });
+    cell.append(mini, el("span", null, locked ? "???" : st.name));
     line.append(cell);
   });
   $("growth-fill").style.width = `${Math.round(growthProgress(g) * 100)}%`;
@@ -465,6 +466,9 @@ function renderEditor() {
           : `${g.points} of ${g.next_at} growth. It grows when you finish tasks, make decisions and talk most days.`;
   $("keep-form").checked = !!state.companion.keep_form;
   $("growth-section").hidden = false;
+  $("dev-section").hidden = !state.me?.dev_tools;
+  $("dev-evolve").disabled = stage >= 3;
+  $("dev-reset").disabled = stage <= 1;
 }
 
 function openCompanion(welcome = false) {
@@ -512,18 +516,8 @@ $("companion-form").addEventListener("submit", async (e) => {
 // ---------- evolution ----------
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-$("evolve-banner").addEventListener("click", async () => {
-  const before = { ...state.companion };
-  const res = await api(`/v1/companions/${before.id}/evolve`, { method: "POST" }).catch((e) => e);
-  if (res instanceof AuthError) return showSignin(res.message);
-  if (!(res instanceof Response) || !res.ok) {
-    showBubble("Not quite ready yet. Let's keep going.");
-    await afterTurn();
-    return;
-  }
-  const body = await res.json();
-  const after = { ...state.companion, ...body.companion, growth: body.growth };
-
+/** The evolution sequence: silhouette swaps that speed up, a flash, the reveal. */
+async function playEvolution(before, after) {
   const dlg = $("evolve-sheet");
   const box = $("evolve-creature");
   const oldSvg = creatureSvg(before.appearance, before.stage, { label: before.name });
@@ -539,7 +533,6 @@ $("evolve-banner").addEventListener("click", async () => {
   if (!reducedMotion.matches) {
     await wait(900);
     box.classList.add("silhouette");
-    // Swap between the old and new silhouettes, faster each time.
     let gap = 520;
     let showNew = false;
     while (gap > 60) {
@@ -562,10 +555,59 @@ $("evolve-banner").addEventListener("click", async () => {
   $("evolve-sub").textContent = FAMILIES[normalizeAppearance(after.appearance).family].stages[after.stage - 1].blurb;
   $("evolve-done").hidden = false;
   $("evolve-done").focus();
+}
 
-  state.companion = after;
-  state.wasReady = !!after.growth?.ready;
+function applyCompanion(body) {
+  state.companion = { ...state.companion, ...body.companion, growth: body.growth };
+  state.wasReady = !!body.growth?.ready;
   renderCompanion();
+}
+
+$("evolve-banner").addEventListener("click", async () => {
+  const before = { ...state.companion };
+  const res = await api(`/v1/companions/${before.id}/evolve`, { method: "POST" }).catch((e) => e);
+  if (res instanceof AuthError) return showSignin(res.message);
+  if (!(res instanceof Response) || !res.ok) {
+    showBubble("Not quite ready yet. Let's keep going.");
+    await afterTurn();
+    return;
+  }
+  const body = await res.json();
+  await playEvolution(before, { ...before, ...body.companion });
+  applyCompanion(body);
+});
+
+// Development: jump stages to preview the designs (only when the server allows it).
+async function devSetStage(stage) {
+  const res = await api(`/v1/dev/companions/${state.companion.id}/stage`, { method: "POST", body: JSON.stringify({ stage }) });
+  if (!res.ok) throw new Error(`Dev stage change failed (${res.status}).`);
+  return res.json();
+}
+
+$("dev-evolve").addEventListener("click", async () => {
+  // Uses the saved look; save first to preview a different kind or colour.
+  const before = { ...state.companion };
+  try {
+    const body = await devSetStage(before.stage + 1);
+    $("companion-sheet").close();
+    await playEvolution(before, { ...before, stage: body.companion.stage });
+    applyCompanion(body);
+  } catch (e) {
+    if (e instanceof AuthError) return showSignin(e.message);
+    $("companion-error").hidden = false;
+    $("companion-error").textContent = e.message;
+  }
+});
+
+$("dev-reset").addEventListener("click", async () => {
+  try {
+    applyCompanion(await devSetStage(1));
+    renderEditor();
+  } catch (e) {
+    if (e instanceof AuthError) return showSignin(e.message);
+    $("companion-error").hidden = false;
+    $("companion-error").textContent = e.message;
+  }
 });
 
 $("evolve-done").addEventListener("click", () => {

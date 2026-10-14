@@ -44,10 +44,10 @@ export function live(partial: Partial<LiveRecord> & { text: string }): LiveRecor
   };
 }
 
-export async function testApp(opts: { provider?: StubProvider; clock?: () => Date } = {}) {
+export async function testApp(opts: { provider?: StubProvider; clock?: () => Date; devTools?: boolean } = {}) {
   const db = await testDb();
   const provider = opts.provider ?? createStubProvider();
-  const app = buildApp({ db, provider, clock: opts.clock, logLevel: "silent" });
+  const app = buildApp({ db, provider, clock: opts.clock, logLevel: "silent", devTools: opts.devTools });
   await app.ready();
   return { db, app, provider };
 }
