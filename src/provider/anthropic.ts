@@ -5,6 +5,8 @@ import { ProviderError, type ChatProvider, type ChatTurn, type ProviderRequest, 
 export interface AnthropicProviderOptions {
   model: string;
   effort: "low" | "medium" | "high" | "xhigh" | "max";
+  /** Required by keys that are not scoped to a workspace. */
+  workspaceId?: string;
   client?: Anthropic;
 }
 
@@ -21,7 +23,9 @@ export function alternate(turns: ChatTurn[]): Anthropic.Beta.BetaMessageParam[] 
 }
 
 export function createAnthropicProvider(opts: AnthropicProviderOptions): ChatProvider {
-  const client = opts.client ?? new Anthropic();
+  const client =
+    opts.client ??
+    new Anthropic(opts.workspaceId ? { defaultHeaders: { "anthropic-workspace-id": opts.workspaceId } } : {});
   return {
     async converse(req: ProviderRequest, onText): Promise<ProviderResult> {
       try {

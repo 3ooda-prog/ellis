@@ -8,8 +8,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "allowJs": true,
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "scripts", "test", "vitest.config.ts"]
+  "include": ["src", "scripts", "test", "vitest.config.ts", "public/creature.js"]
 }

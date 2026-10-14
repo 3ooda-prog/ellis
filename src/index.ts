@@ -15,7 +15,7 @@ if (first) {
 }
 const app = buildApp({
   db,
-  provider: createAnthropicProvider({ model: config.model, effort: config.effort }),
+  provider: createAnthropicProvider({ model: config.model, effort: config.effort, workspaceId: config.workspaceId }),
   logLevel: config.logLevel,
 });
 
