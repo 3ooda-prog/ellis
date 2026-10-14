@@ -14,10 +14,12 @@ function draw({ stage, palette: p, accent, id }) {
   const s = STAGE[stage];
   const t = s.ear;
   const glow = `filter="url(#${id}g)"`;
-  const tail = (extra = "") => `<g class="tail" ${extra}>
+  // The placement transform sits on an outer group so the CSS tail sway
+  // (which sets transform on .tail) does not replace it.
+  const tail = (extra = "") => `<g ${extra}><g class="tail">
       <path d="M188 252 C252 254 284 204 266 152 C256 122 230 116 222 134 C240 152 240 196 200 222 Z" fill="url(#${id}t)"/>
       <path d="M255 176 C262 166 263 154 259 144" stroke="${accent}" stroke-width="5" fill="none" stroke-linecap="round" ${glow} opacity=".9"/>
-    </g>`;
+    </g></g>`;
   const ear = (dir) => {
     const m = (x) => (dir < 0 ? x : 300 - x); // mirror for the right ear
     return `<path d="M${m(120)} 84 C${m(108)} 58 ${m(104)} ${t + 20} ${m(110)} ${t} C${m(128)} ${t + 12} ${m(142)} 48 ${m(144)} 70 Z" fill="${p.body}"/>

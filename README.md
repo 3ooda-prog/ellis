@@ -27,7 +27,9 @@ npm run user:create -- you@example.com Asia/Dubai
 npm run dev                     # http://127.0.0.1:3000
 ```
 
-Open http://127.0.0.1:3000 and paste the token to chat in the browser. The page shows replies as they stream in, what was saved from each message, and a "What Ellis remembers" panel (coming up, to do, not sure yet, decisions, about you, recently finished). It works on phones too.
+Open http://127.0.0.1:3000 and paste the token to sign in. The first visit asks you to choose a companion: a **sleek** fox-like creature, a glowing **spirit**, or a **toy** figure, with a name, a colour and a glow. Your companion is the main screen: it listens while you type, thinks, speaks its reply in a bubble, and celebrates when something is saved (with tags showing what). The panels hold what Ellis remembers, the conversation so far, and the companion editor.
+
+**Growth and evolution.** Each family has three stages. A companion earns growth only from real use: 2 per kept memory, 3 per finished task, 3 per decision, 5 per day you talk (`src/growth.ts`; thresholds 60 and 240). When it has enough, a banner offers the evolution; nothing changes until you accept. "Keep this form" holds it in place. To add a new family, add a module to `public/creatures/` (see `sleek.js`) and list it in `public/creatures/index.js`.
 
 To run it in a container (any host that runs Docker, such as Render, Railway or Fly.io):
 
@@ -68,6 +70,7 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 |---|---|---|---|
 | `DATABASE_URL` | yes | — | Postgres connection string |
 | `ANTHROPIC_API_KEY` | yes, to chat | — | Model access. The SDK also accepts `ANTHROPIC_AUTH_TOKEN` or an `ant auth login` profile |
+| `ANTHROPIC_WORKSPACE_ID` | only for keys not scoped to a workspace | — | The workspace to bill (`wrkspc_…`) |
 | `ELLIS_MODEL` | no | `claude-opus-5-5` | Model id |
 | `ELLIS_EFFORT` | no | `low` | `low` / `medium` / `high` / `xhigh` / `max`. Low fits short spoken replies |
 | `PORT`, `HOST` | no | `3000`, `127.0.0.1` | Listen address |
@@ -77,7 +80,7 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 
 ```bash
 npm run typecheck
-npm test            # 55 tests, ~35 s, no network, no API key
+npm test            # 71 tests, ~35 s, no network, no API key
 npm run test:live   # one real model call (§9 smoke test); needs ANTHROPIC_API_KEY
 ```
 
@@ -98,6 +101,8 @@ All `/v1` routes require `Authorization: Bearer <token>`.
 | `GET` | `/` | Web client (public; signs in with your token) |
 | `GET` | `/health` | Public |
 | `GET` | `/v1/me` | User, companions, areas |
+| `PATCH` | `/v1/companions/:id` | `{name?, appearance?, keep_form?}`; appearance is `{family, palette, accent}` |
+| `POST` | `/v1/companions/:id/evolve` | Advance one stage when ready; 409 otherwise |
 | `DELETE` | `/v1/me` | Deletes the user and everything they own |
 | `POST` | `/v1/chat` | `{message, companion_id?, source?}`. JSON by default; SSE with `Accept: text/event-stream` |
 | `GET` | `/v1/records?status=&kind=` | Defaults to everything except `deleted` |

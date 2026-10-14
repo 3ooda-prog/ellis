@@ -118,7 +118,7 @@ describe("deleting a user", () => {
 });
 
 describe("web client", () => {
-  it.each(["/", "/app.js", "/app.css"])("%s is served publicly with a strict CSP", async (url) => {
+  it.each(["/", "/app.js", "/app.css", "/creatures/index.js", "/creatures/sleek.js", "/creatures/spirit.js", "/creatures/toy.js"])("%s is served publicly with a strict CSP", async (url) => {
     const res = await ctx.app.inject({ method: "GET", url });
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-security-policy"]).toContain("script-src 'self'");

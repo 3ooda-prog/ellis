@@ -5,56 +5,164 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <title>Ellis</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
   <link rel="stylesheet" href="/app.css">
-  <script src="/app.js" defer></script>
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <!-- Sign-in: paste the token printed by `npm run user:create`. -->
+  <!-- Sign-in: paste the token printed when the account was created. -->
   <section id="signin" class="signin" hidden>
     <form id="signin-form" class="signin-card">
-      <div class="mark" aria-hidden="true">E</div>
+      <div id="signin-creature" class="signin-creature" aria-hidden="true"></div>
       <h1>Ellis</h1>
       <p>Paste the access token you were given when your account was created.</p>
       <label for="token">Access token</label>
       <input id="token" name="token" type="password" autocomplete="current-password" placeholder="ellis_…" required>
       <p id="signin-error" class="error" role="alert" hidden></p>
-      <button type="submit">Sign in</button>
+      <button type="submit" class="primary">Sign in</button>
     </form>
   </section>
 
   <div id="app" class="app" hidden>
     <header class="bar">
-      <div class="who">
-        <div class="mark small" aria-hidden="true">E</div>
-        <div>
-          <div id="companion-name" class="name">Ellis</div>
-          <div id="status" class="status" aria-live="polite">Here</div>
-        </div>
-      </div>
-      <div class="bar-actions">
-        <button id="memory-toggle" class="ghost" type="button" aria-controls="memory" aria-expanded="false">Memory <span id="memory-count" class="count">0</span></button>
-        <button id="signout" class="ghost" type="button">Sign out</button>
-      </div>
+      <button id="open-companion" class="who" type="button" aria-label="Your companion">
+        <span class="who-text">
+          <span id="companion-name" class="name">Ellis</span>
+          <span id="form-name" class="form-name"></span>
+        </span>
+        <span class="bond" aria-hidden="true"><span id="bond-fill" class="bond-fill"></span></span>
+      </button>
+      <nav class="bar-actions" aria-label="Panels">
+        <button id="open-memory" class="icon-btn" type="button" aria-label="What Ellis remembers">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7M5.5 7h13A1.5 1.5 0 0 1 20 8.5V18a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8.5A1.5 1.5 0 0 1 5.5 7Zm3.5 6h6"/></svg>
+          <span id="memory-count" class="count" hidden>0</span>
+        </button>
+        <button id="open-history" class="icon-btn" type="button" aria-label="Conversation history">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5Zm4 3.5h8m-8 3h5"/></svg>
+        </button>
+        <button id="signout" class="icon-btn" type="button" aria-label="Sign out">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h3.5A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 8l-4 4 4 4m-4-4h10"/></svg>
+        </button>
+      </nav>
     </header>
 
-    <main class="layout">
-      <section class="chat" aria-label="Conversation">
-        <ol id="log" class="log" aria-live="polite"></ol>
-        <form id="composer" class="composer">
-          <label for="message" class="visually-hidden">Message</label>
-          <textarea id="message" rows="1" maxlength="8000" placeholder="Tell Ellis anything…" required></textarea>
-          <button id="send" type="submit">Send</button>
-        </form>
-      </section>
+    <main class="stage" id="stage">
+      <button id="evolve-banner" class="evolve-banner" type="button" hidden>
+        <span class="spark" aria-hidden="true">✦</span>
+        <span id="evolve-banner-text">Ready to evolve</span>
+      </button>
 
-      <aside id="memory" class="memory" aria-label="What Ellis remembers">
-        <div class="memory-head">
-          <h2>What Ellis remembers</h2>
-          <button id="memory-close" class="ghost close" type="button" aria-label="Close memory">Close</button>
+      <div class="scene">
+        <div id="bubble" class="bubble" aria-live="polite" hidden>
+          <p id="bubble-text" class="bubble-text"></p>
+          <div id="receipts" class="receipts"></div>
         </div>
-        <div id="memory-body" class="memory-body"></div>
-      </aside>
+        <div id="creature" class="creature-wrap"></div>
+      </div>
+
+      <p id="you-said" class="you-said" hidden></p>
+
+      <form id="composer" class="composer">
+        <label for="message" class="visually-hidden">Message</label>
+        <textarea id="message" rows="1" maxlength="8000" placeholder="Tell Ellis anything…" required></textarea>
+        <button id="send" class="send" type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+        </button>
+      </form>
     </main>
   </div>
+
+  <!-- Memory -->
+  <dialog id="memory-sheet" class="sheet" aria-labelledby="memory-title">
+    <div class="sheet-head">
+      <h2 id="memory-title">What Ellis remembers</h2>
+      <button class="icon-btn close" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div id="memory-body" class="sheet-body"></div>
+  </dialog>
+
+  <!-- History -->
+  <dialog id="history-sheet" class="sheet" aria-labelledby="history-title">
+    <div class="sheet-head">
+      <h2 id="history-title">This conversation</h2>
+      <button class="icon-btn close" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <ol id="history-body" class="sheet-body history"></ol>
+  </dialog>
+
+  <!-- Companion: customize, growth, evolution line -->
+  <dialog id="companion-sheet" class="sheet wide" aria-labelledby="companion-title">
+    <form id="companion-form" method="dialog">
+      <div class="sheet-head">
+        <h2 id="companion-title">Your companion</h2>
+        <button class="icon-btn close" type="button" data-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body companion-body">
+        <p id="companion-intro" class="intro" hidden>Pick who keeps you company. It grows as Ellis gets to know you, and you can change its look any time.</p>
+        <div class="preview-col">
+          <div id="preview" class="preview"></div>
+          <p id="preview-form" class="preview-form"></p>
+        </div>
+        <div class="controls">
+          <label class="field" for="companion-name-input">Name
+            <input id="companion-name-input" maxlength="24" required>
+          </label>
+
+          <fieldset class="field">
+            <legend>Kind</legend>
+            <div id="family-options" class="family-options"></div>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Colour</legend>
+            <div id="palette-options" class="swatches"></div>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Glow</legend>
+            <div id="accent-options" class="swatches"></div>
+          </fieldset>
+
+          <section id="growth-section" class="growth">
+            <h3>Growth</h3>
+            <div id="evolution-line" class="evolution-line"></div>
+            <div class="growth-bar"><span id="growth-fill"></span></div>
+            <p id="growth-text" class="growth-text"></p>
+            <label class="toggle" for="keep-form">
+              <input id="keep-form" type="checkbox">
+              <span>Keep this form <small>It keeps growing, but won't evolve until you turn this off.</small></span>
+            </label>
+          </section>
+
+          <p id="companion-error" class="error" role="alert" hidden></p>
+          <div class="actions">
+            <button id="companion-save" type="submit" class="primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Evolution -->
+  <dialog id="evolve-sheet" class="evolve-sheet" aria-labelledby="evolve-title">
+    <div class="evolve-stage">
+      <div id="evolve-creature" class="evolve-creature"></div>
+      <div id="evolve-flash" class="evolve-flash"></div>
+    </div>
+    <h2 id="evolve-title" class="evolve-title">What?</h2>
+    <p id="evolve-sub" class="evolve-sub"></p>
+    <div class="actions center">
+      <button id="evolve-done" type="button" class="primary" hidden>Wonderful</button>
+    </div>
+  </dialog>
 </body>
 </html>
