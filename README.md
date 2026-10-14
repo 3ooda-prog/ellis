@@ -69,7 +69,10 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `DATABASE_URL` | yes | — | Postgres connection string |
-| `ANTHROPIC_API_KEY` | yes, to chat | — | Model access. The SDK also accepts `ANTHROPIC_AUTH_TOKEN` or an `ant auth login` profile |
+| `ELLIS_PROVIDER` | no | `anthropic` (or `gemini` if only a Gemini key is set) | Which model answers: `anthropic` or `gemini` |
+| `GEMINI_API_KEY` | for Gemini | — | Google AI Studio key |
+| `GEMINI_MODEL` | no | `gemini-flash-latest` | Gemini model id |
+| `ANTHROPIC_API_KEY` | for Claude | — | Model access. The SDK also accepts `ANTHROPIC_AUTH_TOKEN` or an `ant auth login` profile |
 | `ANTHROPIC_WORKSPACE_ID` | only for keys not scoped to a workspace | — | The workspace to bill (`wrkspc_…`) |
 | `ELLIS_DEV_TOOLS` | no | off | `1` shows "Evolve now" and "Reset to stage 1" in the companion panel, to preview designs. Turn off before others use the app |
 | `ELLIS_MODEL` | no | `claude-opus-5-5` | Model id |
@@ -81,7 +84,7 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 
 ```bash
 npm run typecheck
-npm test            # 73 tests, ~35 s, no network, no API key
+npm test            # 78 tests, ~35 s, no network, no API key
 npm run test:live   # one real model call (§9 smoke test); needs ANTHROPIC_API_KEY
 ```
 

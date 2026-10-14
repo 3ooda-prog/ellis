@@ -28,6 +28,8 @@ export interface ProviderResult {
 }
 
 export interface ChatProvider {
+  /** The model family's name, as the companion may truthfully describe itself. */
+  engine: string;
   converse(req: ProviderRequest, onText: (delta: string) => void): Promise<ProviderResult>;
 }
 

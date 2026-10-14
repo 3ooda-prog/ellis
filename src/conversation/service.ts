@@ -129,7 +129,7 @@ export async function handleMessage(
     )
   ).rows;
   const relevant = retrieve(live, { message: input.message, now, homeAreaKey: companion.area_key });
-  const system = buildSystemPrompt({ companion, areas, records: relevant, now, timezone: user.timezone });
+  const system = buildSystemPrompt({ companion, areas, records: relevant, now, timezone: user.timezone, engine: provider.engine });
 
   let result;
   try {

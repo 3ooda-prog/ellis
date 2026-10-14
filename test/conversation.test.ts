@@ -214,3 +214,12 @@ describe("concurrency", () => {
     await insertRecord(ctx.db, u.user.id, { text: "likes tea", status: "superseded" }); // closed records don't count
   });
 });
+
+describe("engine name", () => {
+  it("the companion names the model actually answering", async () => {
+    const { buildSystemPrompt } = await import("../src/conversation/prompt.js");
+    const base = { companion: { name: "Pip", role: "coach", persona: "" }, areas: [], records: [], now: new Date(), timezone: "UTC" };
+    expect(buildSystemPrompt({ ...base, engine: "Gemini" })).toContain("Underneath you are Gemini");
+    expect(buildSystemPrompt(base)).toContain("Underneath you are Claude");
+  });
+});

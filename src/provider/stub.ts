@@ -13,6 +13,7 @@ export function createStubProvider(...initial: StubReply[]): StubProvider {
   const queue = [...initial];
   const requests: ProviderRequest[] = [];
   return {
+    engine: "Claude",
     requests,
     push: (...r) => queue.push(...r),
     async converse(req, onText) {

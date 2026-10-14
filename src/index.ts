@@ -2,6 +2,7 @@ import { loadConfig } from "./config.js";
 import { createPgDb } from "./db/index.js";
 import { migrate } from "./db/migrate.js";
 import { createAnthropicProvider } from "./provider/anthropic.js";
+import { createGeminiProvider } from "./provider/gemini.js";
 import { bootstrapFirstUser } from "./bootstrap.js";
 import { buildApp } from "./server.js";
 
@@ -15,10 +16,20 @@ if (first) {
 }
 const app = buildApp({
   db,
-  provider: createAnthropicProvider({ model: config.model, effort: config.effort, workspaceId: config.workspaceId }),
+  provider:
+    config.provider === "gemini"
+      ? createGeminiProvider({ apiKey: requireGeminiKey(config.geminiApiKey), model: config.geminiModel })
+      : createAnthropicProvider({ model: config.model, effort: config.effort, workspaceId: config.workspaceId }),
   logLevel: config.logLevel,
   devTools: config.devTools,
 });
+
+console.log(`[ellis] model provider: ${config.provider === "gemini" ? `Gemini (${config.geminiModel})` : `Claude (${config.model})`}`);
+
+function requireGeminiKey(key: string | undefined): string {
+  if (!key) throw new Error("ELLIS_PROVIDER=gemini needs GEMINI_API_KEY");
+  return key;
+}
 
 const shutdown = async () => {
   await app.close();

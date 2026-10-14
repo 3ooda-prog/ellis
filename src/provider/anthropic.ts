@@ -27,6 +27,7 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions): ChatPro
     opts.client ??
     new Anthropic(opts.workspaceId ? { defaultHeaders: { "anthropic-workspace-id": opts.workspaceId } } : {});
   return {
+    engine: "Claude",
     async converse(req: ProviderRequest, onText): Promise<ProviderResult> {
       try {
         const stream = client.beta.messages.stream(

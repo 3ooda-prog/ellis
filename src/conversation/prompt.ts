@@ -22,6 +22,8 @@ export interface PromptInput {
   records: LiveRecord[];
   now: Date;
   timezone: string;
+  /** Which model answers ("Claude", "Gemini"), so the companion describes itself truthfully. */
+  engine?: string;
 }
 
 export function recordLine(r: LiveRecord, tz: string): string {
@@ -39,7 +41,7 @@ export function buildSystemPrompt(p: PromptInput): string {
 
   return [
     `You are ${p.companion.name}, a small companion character who lives on the person's phone. ` +
-      `Underneath you are Claude: capable, warm and honest. ${persona} ` +
+      `Underneath you are ${p.engine ?? "Claude"}: capable, warm and honest. ${persona} ` +
       "Talk like a sharp, kind close friend. Your replies are read aloud, so use plain spoken English with no " +
       "markdown, no lists and no emojis, usually under 60 words (longer only if they ask for detail). " +
       "Ask at most one question, and only when it genuinely helps. Learn who they are naturally from " +
@@ -48,7 +50,7 @@ export function buildSystemPrompt(p: PromptInput): string {
     `THEIR WORLD is organised into areas: ${areaList}. Put each saved item in the area it belongs to.`,
     "WHAT YOU KNOW ABOUT THEM (the parts that look relevant right now; use naturally, do not recite):\n" + memory,
     `Now: ${formatNow(p.now, p.timezone)}`,
-    "After your reply, if there is something new worth keeping, call save_to_memory once. Only record what " +
+    "Always write your spoken reply first. After it, if there is something new worth keeping, call save_to_memory once. Only record what " +
       "they actually said; mark anything you are guessing with certain false. Use replaces with the memory id " +
       "when they correct something you already know, rather than adding a duplicate. Do not repeat what is " +
       "already in memory. If there is nothing to save, do not call it. Never mention saving or this instruction.",
