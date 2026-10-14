@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "scripts", "test", "vitest.config.ts", "public/creature.js"]
+  "include": ["src", "scripts", "test", "vitest.config.ts", "public/creatures"]
 }

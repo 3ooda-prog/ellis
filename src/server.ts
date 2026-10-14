@@ -3,7 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { z } from "zod";
-import { isValidAppearance } from "../public/creature.js";
+import { isValidAppearance } from "../public/creatures/index.js";
+import { audit } from "./audit.js";
+import { companionGrowth } from "./growth.js";
 import { handleMessage, NotFoundError, type ChatEvent } from "./conversation/service.js";
 import type { Db } from "./db/index.js";
 import type { ChatProvider } from "./provider/types.js";
@@ -36,8 +38,9 @@ const CompanionPatch = z
   .object({
     name: z.string().trim().min(1).max(24).optional(),
     appearance: z.unknown().refine(isValidAppearance, "unknown appearance option").optional(),
+    keep_form: z.boolean().optional(),
   })
-  .refine((b) => b.name !== undefined || b.appearance !== undefined, "nothing to update");
+  .refine((b) => b.name !== undefined || b.appearance !== undefined || b.keep_form !== undefined, "nothing to update");
 
 const RecordQuery = z.object({
   status: z.enum(["active", "candidate", "superseded", "done", "deleted"]).optional(),
@@ -50,7 +53,10 @@ const STATIC_FILES: Record<string, { file: string; type: string }> = {
   "/": { file: "index.html", type: "text/html; charset=utf-8" },
   "/app.js": { file: "app.js", type: "text/javascript; charset=utf-8" },
   "/app.css": { file: "app.css", type: "text/css; charset=utf-8" },
-  "/creature.js": { file: "creature.js", type: "text/javascript; charset=utf-8" },
+  "/creatures/index.js": { file: "creatures/index.js", type: "text/javascript; charset=utf-8" },
+  "/creatures/sleek.js": { file: "creatures/sleek.js", type: "text/javascript; charset=utf-8" },
+  "/creatures/spirit.js": { file: "creatures/spirit.js", type: "text/javascript; charset=utf-8" },
+  "/creatures/toy.js": { file: "creatures/toy.js", type: "text/javascript; charset=utf-8" },
 };
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 
@@ -94,13 +100,16 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
       v1.get("/me", async (req) => {
         const companions = await db.query(
-          `select c.id, c.name, c.role, c.is_primary, c.appearance, a.key as area_key
+          `select c.id, c.name, c.role, c.is_primary, c.appearance, c.stage, c.keep_form, a.key as area_key
              from companions c left join areas a on a.id = c.area_id
             where c.user_id = $1 order by c.is_primary desc, c.created_at`,
           [req.user.id],
         );
         const areas = await db.query("select key, name, status from areas where user_id = $1 order by key", [req.user.id]);
-        return { user: req.user, companions: companions.rows, areas: areas.rows };
+        const withGrowth = await Promise.all(
+          companions.rows.map(async (c) => ({ ...c, growth: await companionGrowth(db, req.user.id, c.id as string) })),
+        );
+        return { user: req.user, companions: withGrowth, areas: areas.rows };
       });
 
       v1.patch<{ Params: { id: string } }>("/companions/:id", async (req, reply) => {
@@ -110,18 +119,39 @@ export function buildApp(deps: AppDeps): FastifyInstance {
         const { rows } = await db.query(
           `update companions
               set name = coalesce($3, name),
-                  appearance = coalesce($4::jsonb, appearance)
+                  appearance = coalesce($4::jsonb, appearance),
+                  keep_form = coalesce($5, keep_form)
             where id = $1 and user_id = $2
-            returning id, name, role, is_primary, appearance`,
+            returning id, name, role, is_primary, appearance, stage, keep_form`,
           [
             req.params.id,
             req.user.id,
             body.data.name ?? null,
             body.data.appearance === undefined ? null : JSON.stringify(body.data.appearance),
+            body.data.keep_form ?? null,
           ],
         );
         if (!rows[0]) return reply.code(404).send({ error: "not found" });
-        return { companion: rows[0] };
+        return { companion: rows[0], growth: await companionGrowth(db, req.user.id, req.params.id) };
+      });
+
+      // Evolve to the next stage. Only when enough growth has been earned and
+      // the user has not chosen to keep the current form.
+      v1.post<{ Params: { id: string } }>("/companions/:id/evolve", async (req, reply) => {
+        if (!UUID.test(req.params.id)) return reply.code(404).send({ error: "not found" });
+        const growth = await companionGrowth(db, req.user.id, req.params.id);
+        if (!growth) return reply.code(404).send({ error: "not found" });
+        if (!growth.ready) return reply.code(409).send({ error: "not ready to evolve", growth });
+        const { rows } = await db.query(
+          `update companions set stage = stage + 1, evolved_at = now()
+            where id = $1 and user_id = $2 and stage = $3
+            returning id, name, role, is_primary, appearance, stage, keep_form`,
+          [req.params.id, req.user.id, growth.stage],
+        );
+        // A concurrent evolve already moved it on.
+        if (!rows[0]) return reply.code(409).send({ error: "already evolved", growth });
+        await audit(db, req.user.id, "companion.evolve", req.params.id, { from: growth.stage, to: growth.stage + 1 });
+        return { companion: rows[0], growth: await companionGrowth(db, req.user.id, req.params.id) };
       });
 
       v1.delete("/me", async (req, reply) => {

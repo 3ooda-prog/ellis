@@ -1,6 +1,7 @@
-// Saving the companion's name and look.
+// Customizing the companion, its growth, and evolution.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEFAULT_APPEARANCE, normalizeAppearance, OPTIONS } from "../public/creature.js";
+import { creatureSvg, DEFAULT_APPEARANCE, FAMILIES, normalizeAppearance } from "../public/creatures/index.js";
+import { growthFrom, STAGE_THRESHOLDS } from "../src/growth.js";
 import { auth, testApp, testUser } from "./helpers.js";
 
 let ctx: Awaited<ReturnType<typeof testApp>>;
@@ -12,58 +13,133 @@ beforeAll(async () => {
   ctx = await testApp();
   a = await testUser(ctx.db);
   b = await testUser(ctx.db);
-  companionId = (await ctx.app.inject({ method: "GET", url: "/v1/me", headers: auth(a.token) })).json().companions[0].id;
+  companionId = (await me(a.token)).companions[0].id;
 });
 afterAll(async () => {
   await ctx.app.close();
   await ctx.db.close();
 });
 
-const look = { species: "foxling", color: "mint", pattern: "spots", eyes: "sparkle", accessory: "scarf" };
+async function me(token: string) {
+  return (await ctx.app.inject({ method: "GET", url: "/v1/me", headers: auth(token) })).json();
+}
+const look = { family: "spirit", palette: "aurora", accent: "teal" };
 const patch = (token: string, payload: unknown, id = companionId) =>
   ctx.app.inject({ method: "PATCH", url: `/v1/companions/${id}`, headers: auth(token), payload: payload as object });
+const evolve = (token: string, id = companionId) =>
+  ctx.app.inject({ method: "POST", url: `/v1/companions/${id}/evolve`, headers: auth(token) });
 
-describe("PATCH /v1/companions/:id", () => {
-  it("saves name and appearance, and /me returns them", async () => {
-    const res = await patch(a.token, { name: "Pip", appearance: look });
-    expect(res.statusCode).toBe(200);
-    const me = (await ctx.app.inject({ method: "GET", url: "/v1/me", headers: auth(a.token) })).json();
-    expect(me.companions[0]).toMatchObject({ name: "Pip", appearance: look });
+/** Give the companion `n` kept memories (2 points each). */
+async function addMemories(userId: string, n: number, prefix: string) {
+  for (let i = 0; i < n; i++) {
+    await ctx.db.query(
+      "insert into records (user_id, kind, text, created_by_companion_id) values ($1, 'fact', $2, $3)",
+      [userId, `${prefix} ${i}`, companionId],
+    );
+  }
+}
+
+describe("customizing", () => {
+  it("saves name and look, and /me returns them", async () => {
+    expect((await patch(a.token, { name: "Pip", appearance: look })).statusCode).toBe(200);
+    expect((await me(a.token)).companions[0]).toMatchObject({ name: "Pip", appearance: look, stage: 1 });
   });
 
   it("the new name reaches the model's instructions", async () => {
-    await patch(a.token, { name: "Pip" });
     await ctx.app.inject({ method: "POST", url: "/v1/chat", headers: auth(a.token), payload: { message: "hi" } });
     expect(ctx.provider.requests.at(-1)!.system).toMatch(/^You are Pip,/);
   });
 
-  it("rejects unknown options, missing keys and empty or long names", async () => {
-    expect((await patch(a.token, { appearance: { ...look, accessory: "crown" } })).statusCode).toBe(400);
-    expect((await patch(a.token, { appearance: { species: "mochi" } })).statusCode).toBe(400);
-    expect((await patch(a.token, { appearance: { ...look, extra: "x" } })).statusCode).toBe(400);
-    expect((await patch(a.token, { name: "   " })).statusCode).toBe(400);
-    expect((await patch(a.token, { name: "x".repeat(25) })).statusCode).toBe(400);
-    expect((await patch(a.token, {})).statusCode).toBe(400);
+  it("rejects options from another family, unknown keys, and bad names", async () => {
+    const bad = [
+      { appearance: { family: "spirit", palette: "slate", accent: "teal" } }, // slate is a sleek palette
+      { appearance: { family: "dragon", palette: "moon", accent: "teal" } },
+      { appearance: { ...look, accent: "neon" } },
+      { appearance: { ...look, extra: "x" } },
+      { appearance: { family: "spirit" } },
+      { appearance: { family: "toy", palette: "toString", accent: "teal" } }, // inherited property names
+      { name: "   " },
+      { name: "x".repeat(25) },
+      {},
+    ];
+    for (const payload of bad) expect((await patch(a.token, payload)).statusCode, JSON.stringify(payload)).toBe(400);
   });
 
-  it("another user cannot change it", async () => {
+  it("another user cannot change it, and a token is required", async () => {
     expect((await patch(b.token, { name: "Hacked" })).statusCode).toBe(404);
-    const me = (await ctx.app.inject({ method: "GET", url: "/v1/me", headers: auth(a.token) })).json();
-    expect(me.companions[0].name).not.toBe("Hacked");
-  });
-
-  it("requires a token", async () => {
-    const res = await ctx.app.inject({ method: "PATCH", url: `/v1/companions/${companionId}`, payload: { name: "x" } });
-    expect(res.statusCode).toBe(401);
+    expect((await evolve(b.token)).statusCode).toBe(404);
+    const anon = await ctx.app.inject({ method: "PATCH", url: `/v1/companions/${companionId}`, payload: { name: "x" } });
+    expect(anon.statusCode).toBe(401);
   });
 });
 
-describe("creature options", () => {
-  it("normalizes unknown or missing values to defaults", () => {
-    expect(normalizeAppearance(null)).toEqual(DEFAULT_APPEARANCE);
-    expect(normalizeAppearance({ species: "dragon", color: "sky" })).toEqual({ ...DEFAULT_APPEARANCE, color: "sky" });
+describe("growth and evolution", () => {
+  it("counts kept memories, finished tasks, decisions and days talked; not guesses", async () => {
+    const before = (await me(a.token)).companions[0].growth.points;
+    await ctx.db.query(
+      `insert into records (user_id, kind, text, status, confidence, created_by_companion_id) values
+        ($1, 'task', 'growth task', 'done', 'explicit', $2),
+        ($1, 'decision', 'growth decision', 'active', 'explicit', $2),
+        ($1, 'fact', 'growth guess', 'candidate', 'inferred', $2)`,
+      [a.user.id, companionId],
+    );
+    // task: 2 + 3, decision: 2 + 3, guess: 0
+    expect((await me(a.token)).companions[0].growth.points).toBe(before + 10);
   });
-  it("every default is an allowed option", () => {
-    for (const [k, v] of Object.entries(DEFAULT_APPEARANCE)) expect((OPTIONS as Record<string, string[]>)[k]).toContain(v);
+
+  it("will not evolve before enough growth", async () => {
+    const res = await evolve(a.token);
+    expect(res.statusCode).toBe(409);
+    expect(res.json().growth.ready).toBe(false);
+  });
+
+  it("keep_form holds it in place even when ready", async () => {
+    await addMemories(a.user.id, 30, "memory");
+    expect((await me(a.token)).companions[0].growth.ready).toBe(true);
+    await patch(a.token, { keep_form: true });
+    expect((await me(a.token)).companions[0].growth.ready).toBe(false);
+    expect((await evolve(a.token)).statusCode).toBe(409);
+    await patch(a.token, { keep_form: false });
+  });
+
+  it("evolves one stage at a time, keeps the look, and audits it", async () => {
+    const res = await evolve(a.token);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().companion).toMatchObject({ stage: 2, appearance: look, name: "Pip" });
+    expect((await evolve(a.token)).statusCode).toBe(409); // not yet at the stage-3 threshold
+    const logged = await ctx.db.query("select detail from audit_log where action = 'companion.evolve'");
+    expect(logged.rows).toEqual([{ detail: { from: 1, to: 2 } }]);
+  });
+});
+
+describe("growthFrom", () => {
+  it("reports progress and stops at stage 3", () => {
+    expect(growthFrom(10, 1, false)).toMatchObject({ next_at: STAGE_THRESHOLDS[2], stage_start: 0, ready: false });
+    expect(growthFrom(STAGE_THRESHOLDS[3], 2, false).ready).toBe(true);
+    expect(growthFrom(9999, 3, false)).toMatchObject({ next_at: null, ready: false });
+  });
+});
+
+describe("creature registry", () => {
+  it("normalizes unknown values to defaults", () => {
+    expect(normalizeAppearance(null)).toEqual(DEFAULT_APPEARANCE);
+    expect(normalizeAppearance({ family: "toy", palette: "nope" }).palette).toBe(Object.keys(FAMILIES.toy.palettes)[0]);
+  });
+
+  it("every family draws all three stages with every palette", () => {
+    for (const [family, fam] of Object.entries(FAMILIES)) {
+      expect(fam.stages).toHaveLength(3);
+      for (const palette of Object.keys(fam.palettes)) {
+        for (const stage of [1, 2, 3]) {
+          const svg = creatureSvg({ family, palette, accent: "teal" }, stage);
+          expect(svg).toMatch(/^<svg class="creature fam-/);
+          expect(svg).not.toMatch(/undefined|NaN/);
+        }
+      }
+    }
+  });
+
+  it("never puts the label into markup unescaped", () => {
+    expect(creatureSvg(DEFAULT_APPEARANCE, 1, { label: '"><script>x</script>' })).not.toContain("<script>");
   });
 });
