@@ -109,3 +109,40 @@ Target blended ARPU: 60 to 70 BHD per paying designer account (mix of Signature 
 - [Monthly fixed costs]
 - [Current paying customers per tier]
 - [Number of active suppliers and what they would pay]
+
+## 7. Commission on materials sold through the platform (added 2026-10-14)
+
+Assumption: DesignEase takes an order and the supplier ships and invoices, so DesignEase charges the supplier a commission. It does not buy and hold stock.
+Assumption: the commission is charged on the materials only, not on cutting, fabrication, installation or delivery.
+
+Rule used: the commission has to fit inside the supplier's gross margin. A supplier should give up at most about a quarter of its margin for a sale it would not otherwise have made. This is a judgment, not a sourced benchmark.
+
+What suppliers earn (gross margin):
+- Independent tile distributors: 34.4% average, 39.4% for the best (https://www.floortrendsmag.com/articles/82996-how-the-high-profit-distributor-outfoxes-the-competition, about 14 years old)
+- Flooring dealers: 37% average, per BizMiner as quoted by https://www.qfloors.com/stop-guessing-how-to-price-flooring-jobs-for-profit/
+- Floor & Decor, tile, wood and stone retailer: 43.6% in fiscal 2025 (https://www.sec.gov/Archives/edgar/data/1507079/000162828026009770/fnd-20251225.htm)
+- Quartz fabricators mark up slab cost 15% to 40% (https://slabwise.com/guides/wholesale-quartz-countertops)
+
+What other marketplaces take:
+- Houzz: 15% to 20% of the sale, from 2015 to 2018 reports (https://channelx.world/2018/10/marketplaces-2018-houzz/)
+- Amazon: 8% for building materials in one guide, 15% for Tools and Home Improvement in another (https://www.runfutureproof.com/amazon-fees/tools)
+
+| Category | Commission | Why |
+|---|---|---|
+| Porcelain tiles | 6% to 8% | Commodity, price-shopped per m², heavy and breakable. Margins about 34% |
+| Ceramic tiles | 6% to 8% | Same as porcelain, lower price per m², so a higher % gets noticed |
+| Wood and parquet | 8% to 10% | Flooring dealers around 37%. Fewer brands to compare, so less price shopping |
+| Quartz, branded | 6% to 8% | Distributors hold territory deals and thin slab margins |
+| Quartz, unbranded | 8% to 10% | More margin and more room for a platform fee |
+| Natural stone (marble, granite) | 10% to 12% | Each slab is unique, so the designer cannot price-shop it. Highest value per order |
+
+Mechanics:
+- Start everyone at the low end for 6 months, then move suppliers who get the most orders to the top of the range.
+- Cap the commission per order, for example [cap in BHD] on stone orders, so a large villa job does not push a supplier off the platform.
+- Show suppliers the price, never mark it up to the designer. If the designer later finds the same tile cheaper at the showroom, trust in the platform ends.
+- If DesignEase takes the commission, drop the per-quote fee (section 2) for suppliers who sell through checkout, so they are not charged twice.
+
+Questions to answer before setting the final numbers:
+- [Do designers in Bahrain already get a referral % from suppliers? If yes, the commission has to sit on top of it or replace it.]
+- [Typical supplier margin in Bahrain per category. Ask 5 suppliers.]
+- [Who pays for breakage and returns: supplier or platform?]
