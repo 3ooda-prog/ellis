@@ -1,0 +1,1 @@
+- 2026-10-14 · pricing-strategy · The company is DesignEase, website www.designease.io
