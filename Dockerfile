@@ -10,4 +10,4 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
 EXPOSE 3000
 USER node
 # Applies pending migrations on start, then serves the API and the web client.
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["./node_modules/.bin/tsx", "src/index.ts"]

@@ -36,6 +36,17 @@ docker build -t ellis .
 docker run -p 3000:3000 -e DATABASE_URL=... -e ANTHROPIC_API_KEY=... ellis
 ```
 
+### Railway
+
+`railway.json` builds the Dockerfile and health-checks `/health`. In one Railway project:
+
+1. Add a **PostgreSQL** database.
+2. Add a service from this GitHub repo.
+3. On that service, set `DATABASE_URL` to `${{Postgres.DATABASE_URL}}`, then set `ANTHROPIC_API_KEY`, `ELLIS_BOOTSTRAP_EMAIL` (your email) and `ELLIS_BOOTSTRAP_TIMEZONE` (for example `Asia/Dubai`).
+4. Generate a public domain under the service's Networking settings.
+
+The first deploy creates your account and prints its access token once in the deploy log. Open the domain and paste that token in.
+
 Quick check from the command line:
 
 ```bash
@@ -66,7 +77,7 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 
 ```bash
 npm run typecheck
-npm test            # 54 tests, ~35 s, no network, no API key
+npm test            # 55 tests, ~35 s, no network, no API key
 npm run test:live   # one real model call (§9 smoke test); needs ANTHROPIC_API_KEY
 ```
 
