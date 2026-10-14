@@ -29,6 +29,8 @@ npm run dev                     # http://127.0.0.1:3000
 
 Open http://127.0.0.1:3000 and paste the token to sign in. The first visit asks you to choose a companion: a **sleek** fox-like creature, a glowing **spirit**, or a **toy** figure, with a name, a colour and a glow. Your companion is the main screen: it listens while you type, thinks, speaks its reply in a bubble, and celebrates when something is saved (with tags showing what). The panels hold what Ellis remembers, the conversation so far, and the companion editor.
 
+**Voice.** Tap the mic to say one thing; the companion answers out loud, sentence by sentence as the reply streams in. Tap the wave icon for a voice conversation: it listens, answers, then listens again, until you tap it off or stay quiet. Tap the mic while it's talking to interrupt. This uses the browser's built-in speech (free, no keys): listening works in Chrome, Edge and Safari (not Firefox), and the site must be on HTTPS. Each family has its own pitch and pace.
+
 **Growth and evolution.** Each family has three stages. A companion earns growth only from real use: 2 per kept memory, 3 per finished task, 3 per decision, 5 per day you talk (`src/growth.ts`; thresholds 60 and 240). When it has enough, a banner offers the evolution; nothing changes until you accept. "Keep this form" holds it in place. To add a new family, add a module to `public/creatures/` (see `sleek.js`) and list it in `public/creatures/index.js`.
 
 To run it in a container (any host that runs Docker, such as Render, Railway or Fly.io):
@@ -84,7 +86,7 @@ curl -sN localhost:3000/v1/chat -H "authorization: Bearer $TOKEN" -H 'accept: te
 
 ```bash
 npm run typecheck
-npm test            # 78 tests, ~35 s, no network, no API key
+npm test            # 79 tests, ~35 s, no network, no API key
 npm run test:live   # one real model call (§9 smoke test); needs ANTHROPIC_API_KEY
 ```
 

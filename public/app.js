@@ -3,12 +3,16 @@
 // Creature SVG comes from public/creatures, built only from its own tables.
 
 import { ACCENTS, FAMILIES, creatureSvg, formName, normalizeAppearance } from "./creatures/index.js";
+import { Speaker, canListen, canSpeak, listenOnce, primeSpeech, stopListening, stopSpeaking } from "./voice.js";
 
 const TOKEN_KEY = "ellis.token";
 const $ = (id) => document.getElementById(id);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-const state = { token: null, me: null, companion: null, areaNames: {}, sending: false, draft: null, wasReady: false };
+const state = {
+  token: null, me: null, companion: null, areaNames: {}, sending: false, draft: null, wasReady: false,
+  voiceMode: false, listening: false, speaker: null,
+};
 
 function readToken() {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
@@ -209,7 +213,7 @@ async function readSse(res, onEvent) {
 
 class ChatError extends Error {}
 
-async function send(text) {
+async function send(text, { voice = false } = {}) {
   state.sending = true;
   $("send").disabled = true;
   const said = $("you-said");
@@ -218,12 +222,28 @@ async function send(text) {
   showBubble("", { thinking: true });
   mood("thinking");
 
+  // Talked to it? It talks back.
+  const speaker = voice && canSpeak
+    ? new Speaker({
+        family: normalizeAppearance(state.companion.appearance).family,
+        onStart: () => { mood("talking"); setVoiceStatus("Speaking… tap the mic to interrupt"); },
+        onEnd: () => {
+          if (state.speaker === speaker) state.speaker = null;
+          if (!state.sending) mood("idle");
+          if (state.voiceMode) listenTurn();
+          else setVoiceStatus("");
+        },
+      })
+    : null;
+  state.speaker = speaker;
+
   let reply = "";
+  let failed = false;
   try {
     const res = await api("/v1/chat", {
       method: "POST",
       headers: { accept: "text/event-stream" },
-      body: JSON.stringify({ message: text, companion_id: state.companion.id }),
+      body: JSON.stringify({ message: text, companion_id: state.companion.id, source: voice ? "voice" : "text" }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -234,6 +254,7 @@ async function send(text) {
         if (!reply) { $("bubble").classList.remove("thinking"); mood("talking"); }
         reply += e.text;
         $("bubble-text").textContent = reply;
+        speaker?.push(e.text);
       } else if (e.type === "receipts") {
         renderReceipts(e.receipts);
         if (e.receipts.length) mood("happy", 900);
@@ -241,17 +262,103 @@ async function send(text) {
         throw new ChatError(e.error);
       }
     });
-    if (!creatureEl()?.classList.contains("is-happy")) mood("idle");
+    if (!speaker && !creatureEl()?.classList.contains("is-happy")) mood("idle");
   } catch (e) {
     if (e instanceof AuthError) return showSignin(e.message);
+    failed = true;
     const msg = e instanceof ChatError ? e.message : "Couldn't reach Ellis. Check your connection; your message may not have been saved.";
     showBubble(msg, { error: true });
     mood("sad", 2600);
   } finally {
     state.sending = false;
     $("send").disabled = false;
+    if (speaker) {
+      // A failed turn ends voice mode rather than looping on errors.
+      if (failed) { setVoiceMode(false); speaker.cancel(); }
+      else speaker.finish();
+    }
     afterTurn();
   }
+}
+
+// ---------- voice ----------
+function setVoiceStatus(text, live = false) {
+  const el = $("voice-status");
+  el.hidden = !text;
+  el.textContent = text;
+  el.classList.toggle("live", live);
+}
+
+function setVoiceMode(on) {
+  state.voiceMode = on;
+  $("voice-mode").setAttribute("aria-pressed", String(on));
+  if (!on) {
+    stopListening();
+    setVoiceStatus("");
+  }
+}
+
+/** Listen for one utterance, then send it. In voice mode the reply's end starts the next turn. */
+async function listenTurn() {
+  if (state.sending || state.listening) return;
+  state.listening = true;
+  $("mic").classList.add("on");
+  $("mic").setAttribute("aria-pressed", "true");
+  mood("listening");
+  setVoiceStatus(state.voiceMode ? "Listening… tap the wave icon to stop" : "Listening…", true);
+  let text = "";
+  try {
+    text = await listenOnce({ onInterim: (t) => { input.value = t; autosize(); } });
+  } catch (e) {
+    const blocked = e.code === "not-allowed" || e.code === "service-not-allowed";
+    showBubble(blocked
+      ? "Microphone access is blocked. Allow it for this site in your browser settings, then tap the mic again."
+      : "I couldn't hear that. Check your microphone and try again.", { error: true });
+    setVoiceMode(false);
+  } finally {
+    state.listening = false;
+    $("mic").classList.remove("on");
+    $("mic").setAttribute("aria-pressed", "false");
+    input.value = "";
+    autosize();
+  }
+  if (text) {
+    setVoiceStatus("");
+    send(text, { voice: true });
+  } else {
+    mood("idle");
+    if (state.voiceMode) {
+      setVoiceMode(false);
+      setVoiceStatus("Voice paused. Tap the mic to talk.");
+    } else setVoiceStatus("");
+  }
+}
+
+$("mic").addEventListener("click", () => {
+  primeSpeech();
+  if (state.listening) return stopListening(); // finish now with what was heard
+  if (state.speaker) { state.speaker.cancel(); state.speaker = null; stopSpeaking(); } // interrupt
+  listenTurn();
+});
+
+$("voice-mode").addEventListener("click", () => {
+  primeSpeech();
+  const on = !state.voiceMode;
+  setVoiceMode(on);
+  if (on) {
+    if (state.speaker) { state.speaker.cancel(); state.speaker = null; stopSpeaking(); }
+    listenTurn();
+  } else {
+    if (state.speaker) { state.speaker.cancel(); state.speaker = null; }
+    stopSpeaking();
+    mood("idle");
+  }
+});
+
+if (!canListen) {
+  $("mic").disabled = true;
+  $("mic").title = "Voice input isn't supported in this browser. Try Chrome, Edge or Safari.";
+  $("voice-mode").hidden = true;
 }
 
 async function afterTurn() {
@@ -273,6 +380,7 @@ function autosize() {
 }
 input.addEventListener("input", () => {
   autosize();
+  if (state.listening) return;
   if (!state.sending) mood(input.value.trim() ? "listening" : "idle");
 });
 input.addEventListener("blur", () => { if (!state.sending && !input.value.trim()) mood("idle"); });

@@ -112,6 +112,18 @@ button:disabled { opacity: .45; cursor: default; }
 .composer { width: 100%; max-width: 560px; display: flex; gap: 8px; align-items: flex-end; padding: 6px 6px 6px 16px; margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   background: var(--surface); border-radius: 26px; box-shadow: var(--shadow); }
 .composer textarea { flex: 1; min-width: 0; resize: none; max-height: 140px; padding: 9px 0; border: 0; background: transparent; line-height: 1.45; outline: none; }
+.mic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; color: var(--fg); position: relative; transition: background .15s, transform .15s var(--ease-out); }
+.mic:hover { background: var(--surface-2); }
+.mic:active { transform: scale(.92); }
+.mic svg, .icon-btn svg { pointer-events: none; }
+.mic svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mic.on { background: var(--glow); color: #14151B; }
+.mic.on::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--glow); animation: ring 1.4s var(--ease-out) infinite; }
+@keyframes ring { from { opacity: .8; transform: scale(.9); } to { opacity: 0; transform: scale(1.35); } }
+.icon-btn[aria-pressed="true"] { background: color-mix(in oklab, var(--glow) 35%, transparent); }
+.voice-status { margin: 0 0 6px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+.voice-status.live { color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .mic.on::after { animation: none; } }
 .send { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: var(--primary-fg); display: grid; place-items: center; flex-shrink: 0; transition: transform .15s var(--ease-out); }
 .send:active { transform: scale(.92); }
 .send svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
